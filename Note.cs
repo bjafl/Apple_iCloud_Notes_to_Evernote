@@ -10,6 +10,7 @@ namespace ConvertICloudNotes
     {
         private DirectoryInfo NoteDir;
         public static string ATT_MARKER = "###ATTACHMENT*HERE###";
+        private static string OBJ_MARKER = "￼";
 
         public Note(string NoteDirPath)
         {
@@ -28,9 +29,9 @@ namespace ConvertICloudNotes
             while (!txtFileReader.EndOfStream)
             {
                 string line = txtFileReader.ReadLine();
-                if (line.Contains("￼") && iAtt < nAtt) //TODO!!
+                if (line.Contains(OBJ_MARKER) && iAtt < nAtt) //TODO!!
                 {
-                    line = line.Replace("￼", ATT_MARKER);
+                    line = line.Replace(OBJ_MARKER, ATT_MARKER);
                     iAtt++;
                 }
 

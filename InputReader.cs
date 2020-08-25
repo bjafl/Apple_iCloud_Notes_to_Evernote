@@ -8,6 +8,7 @@ namespace ConvertICloudNotes
 {
     public class InputReader : IEnumerator,IEnumerable
     {
+        //
 		private DirectoryInfo RootDir;
 		private Notebook[] Notebooks;
         int position = -1;
