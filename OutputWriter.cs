@@ -12,23 +12,41 @@ namespace ConvertICloudNotes
 {
     public class OutputWriter
 	{
-		private XmlWriterSettings xmlSettings;
-		private XmlWriter writer;
+		private readonly XmlWriterSettings xmlSettings;
+		private readonly XmlWriter writer;
+		public FileInfo OutputFile { get; private set; }
+		public bool Replace { get; private set; }
 
-		public OutputWriter(string OutputFolderPath, string NotebookName)
-        {
-			xmlSettings = new XmlWriterSettings();
-			xmlSettings.Indent = true;
-			string outputFilePath = OutputFolderPath + "\\" + NotebookName + ".enex";
-			writer = XmlWriter.Create(outputFilePath, xmlSettings);
+		public OutputWriter(string OutputFolderPath, string NotebookName, bool Replace = false)
+		{
+			this.Replace = Replace;
+			xmlSettings = new XmlWriterSettings(){
+				Indent = true
+			};
+			OutputFile = GetOutputFile(OutputFolderPath, NotebookName);
+			writer = XmlWriter.Create(OutputFile.FullName, xmlSettings);
 			WriteXmlStart();
+		}
+		private FileInfo GetOutputFile(string OutputDir, string Name, int Suffix = 1)
+        {
+			string outputFilePath = OutputDir + "\\" + Name;
+			if (Suffix > 1)
+				outputFilePath += " (" + Suffix + ")";
+			outputFilePath += ".enex";
+			FileInfo f = new FileInfo(outputFilePath);
+			if (f.Exists & !Replace)
+				return GetOutputFile(OutputDir, Name, Suffix + 1);
+			else
+				return f;
 		}
 
 
 		public void Finish()
-        {
-			WriteXmlEnd();
-        }
+		{
+			writer.WriteEndElement();
+			writer.WriteEndDocument();
+			writer.Close();
+		}
 
 		public void WriteNote(Note note)
         {
@@ -41,10 +59,10 @@ namespace ConvertICloudNotes
 			XmlWriter contentWriter = XmlWriter.Create(content, xmlSettings);
 			contentWriter.WriteDocType("en-note", null, "http://xml.evernote.com/pub/enml2.dtd", null);
 			contentWriter.WriteStartElement("en-note");
-			FileInfo[] attachments = note.GetAttachments();
+			FileInfo[] attachments = note.Attachments;
 			int iAtt = 0;
-			StringReader noteReader = new StringReader(note.GetText());
-			string line = "";
+			StringReader noteReader = new StringReader(note.Text);
+			string line;
 			while ((line = noteReader.ReadLine()) != null)
             {
 				if(line.Contains(Note.ATT_MARKER))
@@ -76,11 +94,11 @@ namespace ConvertICloudNotes
 			writer.WriteRaw(content.ToString());
 			writer.WriteRaw("]]>");
 			writer.WriteEndElement();
-			string noteDateTime = FormatDateTimeEvernote(note.GetDateTime());
+			string noteDateTime = FormatDateTimeEvernote(note.DateTime);
 			writer.WriteElementString("created", noteDateTime); 
 			if (note.HasAttachments)
 			{
-				foreach (FileInfo att in note.GetAttachments())
+				foreach (FileInfo att in note.Attachments)
 				{
 					string attData = FileToBase64(att.FullName);
 					writer.WriteStartElement("resource");
@@ -110,13 +128,6 @@ namespace ConvertICloudNotes
 			writer.WriteAttributeString("export-date", currentDateTime); 
 			writer.WriteAttributeString("application", "Evernote/Windows");
 			writer.WriteAttributeString("version", "6.x");
-		}
-
-		private void WriteXmlEnd()
-        {
-			writer.WriteEndElement();
-			writer.WriteEndDocument();
-			writer.Close();
 		}
 
 		static private string CreateMD5Hash(byte[] input)
@@ -154,28 +165,25 @@ namespace ConvertICloudNotes
 
 		static private string EnMediaFormat(string FileExtension)
         {
-			FileExtension = FileExtension.Replace(".", "");
-			string[] imageFormats = { "jpg", "jpeg","gif", "png" };
-			string[] audioFormats = {"wav","mpeg" };
-			string[] appFormats = { "pdf" }; //TODO: application/vnd.evernote.ink
-			if (imageFormats.Contains(FileExtension))
+			switch (FileExtension)
             {
-				if (FileExtension == "jpg")
+				case ".jpg":
+				case ".jpeg":
 					return "image/jpeg";
-				return "image/" + FileExtension;
+				case ".gif":
+					return "image/gif";
+				case ".png":
+					return "image/png";
+				case ".wav":
+					return "audio/wav";
+				case ".mp3":
+					return "audio/mpeg";
+				case ".pdf":
+					return "application/pdf";
+				// Following format not implemented: application/vnd.evernote.ink
+				default:
+					throw new Exception("Media format not supported by Evernote.");
 			}
-			else if (audioFormats.Contains(FileExtension))
-			{
-				return "audio/" + FileExtension;
-			}
-			else if (appFormats.Contains(FileExtension))
-			{
-				return "application/" + FileExtension;
-			}
-			else
-            {
-				throw new Exception("Media format not supported by Evernote.");
-            }
 		}
 
 		static private int[] FindImageWidthHeight(FileInfo Image)

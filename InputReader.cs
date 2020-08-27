@@ -9,19 +9,34 @@ namespace ConvertICloudNotes
     public class InputReader : IEnumerator,IEnumerable
     {
         //
-		private DirectoryInfo RootDir;
-		private Notebook[] Notebooks;
+		private readonly DirectoryInfo RootDir;
+		private readonly Notebook[] Notebooks;
         int position = -1;
 
-		public InputReader(string InputRootFolderPath)
+		public InputReader(DirectoryInfo InputRootDir)
         {
-			RootDir = new DirectoryInfo(InputRootFolderPath);
+			RootDir = InputRootDir;
             DirectoryInfo[] notebookDirs = RootDir.GetDirectories();
             Notebooks = new Notebook[notebookDirs.Length];
             for (int i = 0; i < notebookDirs.Length; i++)
             {
-                Notebooks[i] = new Notebook(notebookDirs[i].FullName);
+                Notebooks[i] = new Notebook(notebookDirs[i]);
             }
+        }
+
+        public int NotebookCount
+        {
+            get { return Notebooks.Length; }
+        }
+
+        public int NotesCount()
+        {
+            int count = 0;
+            foreach (Notebook notebook in Notebooks)
+            {
+                count += notebook.NoteCount;
+            }
+            return count;
         }
 
         public IEnumerator GetEnumerator()

@@ -8,42 +8,50 @@ namespace ConvertICloudNotes
 {
     public class Note
     {
-        private DirectoryInfo NoteDir;
-        public static string ATT_MARKER = "###ATTACHMENT*HERE###";
-        private static string OBJ_MARKER = "￼";
+        public static readonly string ATT_MARKER = "###ATTACHMENT*HERE###";
+        private static readonly string OBJ_MARKER = "￼";
 
-        public Note(string NoteDirPath)
-        {
-            NoteDir = new DirectoryInfo(NoteDirPath);
-        }
+        public DirectoryInfo Dir { get; private set; }
+        public string Text { get; private set; }
+        public FileInfo[] Attachments { get; private set; }
+        public DateTime DateTime { get; private set; }
 
-        public string GetText()
+        public Note(DirectoryInfo NoteDir)
         {
+            Dir = NoteDir;
+
+            //--- Find and store a list of any attachments
+            if (HasAttachments)
+            {
+                DirectoryInfo attDir = NoteDir.GetDirectories()[0];
+                Attachments = attDir.GetFiles();
+            }
+
+            //--- Read and store note text 
             FileInfo[] txtFilesInDir = NoteDir.GetFiles("*.txt", SearchOption.TopDirectoryOnly);
-            StreamReader txtFileReader = txtFilesInDir[0].OpenText();
-            int nAtt = 0; 
-            if (this.HasAttachments)
-                nAtt = GetAttachments().Length;
+            FileInfo noteTxtFile = txtFilesInDir[0];
+            StreamReader txtFileReader = noteTxtFile.OpenText();
+            int nAtt = 0;
+            if (HasAttachments)
+                nAtt = Attachments.Length;
             int iAtt = 0;
-            String text = "";
+            Text = "";
             while (!txtFileReader.EndOfStream)
             {
                 string line = txtFileReader.ReadLine();
-                if (line.Contains(OBJ_MARKER) && iAtt < nAtt) //TODO!!
+
+                // Find locations of any attachments in the text and mark them.
+                if (line.Contains(OBJ_MARKER) && iAtt < nAtt)
                 {
                     line = line.Replace(OBJ_MARKER, ATT_MARKER);
                     iAtt++;
                 }
 
-                text += line + "\n";
+                Text += line + "\n";
             }
-            return text;
-        }
 
-        public DateTime GetDateTime()
-        {
-            FileInfo[] txtFilesInDir = NoteDir.GetFiles("*.txt", SearchOption.TopDirectoryOnly);
-            string filename = txtFilesInDir[0].Name;
+            //--- Find and store note creation date and time.
+            string filename = noteTxtFile.Name;
             string dateTimeRaw = filename.Substring(filename.Length - 24, 20);
             int year = Convert.ToInt32(dateTimeRaw.Substring(0, 4));
             int month = Convert.ToInt32(dateTimeRaw.Substring(5, 2));
@@ -51,27 +59,18 @@ namespace ConvertICloudNotes
             int hr = Convert.ToInt32(dateTimeRaw.Substring(11, 2));
             int m = Convert.ToInt32(dateTimeRaw.Substring(14, 2));
             int s = Convert.ToInt32(dateTimeRaw.Substring(17, 2));
-            return new DateTime(year, month, day, hr, m, s);
-        }
-
-        public FileInfo[] GetAttachments()
-        {
-            if (this.HasAttachments)
-            {
-                DirectoryInfo attDir = NoteDir.GetDirectories()[0];
-                return attDir.GetFiles();
-            }
-            else return null;
+            DateTime = new DateTime(year, month, day, hr, m, s);
         }
 
         public bool HasAttachments
         {
-            get { return (NoteDir.GetDirectories().Length > 0); }
+            get { return (Dir.GetDirectories().Length > 0); }
         }
-
         public string Title
         {
-            get { return NoteDir.Name; }
+            get { return Dir.Name; }
         }
+
+
     }
 }

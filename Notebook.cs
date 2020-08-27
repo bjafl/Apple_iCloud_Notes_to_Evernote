@@ -8,24 +8,29 @@ namespace ConvertICloudNotes
 {
     public class Notebook : IEnumerator,IEnumerable
     {
-        private DirectoryInfo NotebookDir;
-        private Note[] Notes;
+        public DirectoryInfo Dir { get; private set; }
+        private readonly Note[] Notes;
         int position = -1; 
 
-        public Notebook(string NotebookPath)
+        public Notebook(DirectoryInfo NotebookDir)
         {
-            NotebookDir = new DirectoryInfo(NotebookPath);
-            DirectoryInfo[] noteDirs = NotebookDir.GetDirectories();
+            Dir = NotebookDir;
+            DirectoryInfo[] noteDirs = Dir.GetDirectories();
             Notes = new Note[noteDirs.Length];
             for (int i = 0; i < noteDirs.Length; i++)
             {
-                Notes[i] = new Note(noteDirs[i].FullName);
+                Notes[i] = new Note(noteDirs[i]);
             }
         }
 
         public string Name
         {
-            get { return NotebookDir.Name; }
+            get { return Dir.Name; }
+        }
+
+        public int NoteCount
+        {
+            get { return Notes.Length; }
         }
 
         public IEnumerator GetEnumerator()
